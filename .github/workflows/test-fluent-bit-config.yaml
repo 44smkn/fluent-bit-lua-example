@@ -1,0 +1,43 @@
+name: Test fluent-bit configuraion
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  validate-configuration:
+    runs-on: ubuntu-latest
+    env:
+      FLUENT_BIT_VERSION: v1.9.3
+    steps:
+      - name: Install fluent-bit
+        working-directory: /tmp
+        run: |
+          curl https://raw.githubusercontent.com/fluent/fluent-bit/${FLUENT_BIT_VERSION}/install.sh | sh
+          sudo ln -s /opt/fluent-bit/bin/fluent-bit /usr/local/bin/fluent-bit
+      - uses: actions/checkout@v3
+      - name: Validate configuration file with --dry-run option
+        run: fluent-bit -c fluent-bit.conf --dry-run
+
+  lua-unit-tests:
+    runs-on: ubuntu-latest
+    env:
+      # https://luajit.org/download.html
+      LUAJIT_VERSION: 2.1.0-beta3
+      LUAUNIT_VERSION_TAG: LUAUNIT_V3_4
+    steps:
+      - name: Install luajit
+        working-directory: /tmp
+        run: |
+          FILENAME=LuaJIT-${LUAJIT_VERSION}
+          wget https://luajit.org/download/${FILENAME}.tar.gz
+          tar xzf ${FILENAME}.tar.gz && cd ${FILENAME}
+          make && sudo make install
+          sudo ln -sf /usr/local/bin/luajit-2.1.0-beta3 /usr/local/bin/luajit
+      - uses: actions/checkout@v3
+      - name: Retrive luaunit file
+        run: wget https://raw.githubusercontent.com/bluebird75/luaunit/${LUAUNIT_VERSION_TAG}/luaunit.lua
+      - name: Run unit test
+        run: luajit append_k8s_logname_test.lua
